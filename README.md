@@ -4,7 +4,7 @@ This Python project scrapes job offers from [Pracuj.pl](https://www.pracuj.pl), 
 
 ## Features
 - Keywords search (loaded from a `.txt` file)
-- Extract job **title**, **company**, **publication date**, and **URL**
+- Extract job details
 - Store data in:
   - CSV file
   - SQLite database
