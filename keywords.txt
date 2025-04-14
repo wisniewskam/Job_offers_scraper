@@ -1,2 +1,2 @@
 python
-data science
+data scientist

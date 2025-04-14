@@ -8,11 +8,13 @@ import csv
 import sqlite3
 
 
+# Loader of keywords
 def load_keywords_from_file(file_path="keywords.txt"):
     with open(file_path, "r", encoding="utf-8") as f:
         keywords = [line.strip() for line in f if line.strip()]
     return keywords
 
+# Connection to SQLite database
 def connect_to_db(conn, cur):
     cur.execute('''
         CREATE TABLE IF NOT EXISTS offers (
@@ -26,7 +28,7 @@ def connect_to_db(conn, cur):
     ''')
     conn.commit()
 
-
+# Save keyword, title, company, expiration date and link to SQLite database
 def save_to_db(cur, keyword, title, company, date, link):
     try:
         cur.execute('''
@@ -34,8 +36,8 @@ def save_to_db(cur, keyword, title, company, date, link):
             VALUES (?, ?, ?, ?, ?)
         ''', (keyword, title, company, date, link))
         cur.connection.commit()
-    except Exception as db_error:
-        print(f"Error while saving to database: {db_error}")
+    except Exception as e:
+        print(f"Error while saving to database: {e}")
 
 
 def search_jobs(keyword, writer):
@@ -45,16 +47,20 @@ def search_jobs(keyword, writer):
 
     print(f"\nSearch for jobs with: {keyword}")
 
+    # Configuration of Chrome
     options = Options()
     # options.add_argument("--headless")  # in the background
+
     driver = webdriver.Chrome(options=options)
 
+    # Link with keywords and location: Warszawa
     encoded_keyword = keyword.replace(" ", "%20")
     url = f"https://www.pracuj.pl/praca/{encoded_keyword};kw/warszawa;wp?rd=30"
 
     driver.get(url)
     time.sleep(3) # sec
 
+    # Cookie banner handling
     try:
         wait = WebDriverWait(driver, 3)
         cookie_btn = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[data-test="button-submitCookie"]')))
@@ -68,16 +74,13 @@ def search_jobs(keyword, writer):
     for i in range(initial_count):
         offer_links = driver.find_elements(By.CSS_SELECTOR, 'a[data-test="link-offer"]')
 
-        if i >= len(offer_links):
-            print(f" {i} out of range: ({len(offer_links)})")
-            break
-
         offer = offer_links[i]
 
         driver.execute_script("arguments[0].click();", offer)
         WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.TAG_NAME, "h1")))
         link = driver.current_url
 
+        # Find elements
         try:
             title = driver.find_element(By.CSS_SELECTOR, "[data-test='text-positionName']").text
             company = driver.find_element(By.CSS_SELECTOR, "[data-test='text-employerName']").text
@@ -88,6 +91,7 @@ def search_jobs(keyword, writer):
         except Exception as e:
             print(f"Error while scrapping in the offer: {e}")
 
+        # Save above elements to db
         try:
             save_to_db(cur, keyword, title, company, date, link)
             print("Saved to sql db")
@@ -104,6 +108,7 @@ def search_jobs(keyword, writer):
 if __name__ == "__main__":
     keywords = load_keywords_from_file("keywords.txt")
 
+    # Save to csv
     with open("offers.csv", mode="w", newline="", encoding="utf-8") as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(["Keyword", "Title", "Company", "Expiration", "Link"])

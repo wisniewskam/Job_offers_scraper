@@ -1,10 +1,10 @@
-# Job Offer Scraper
+# Job Offers Scraper
 
 This Python project scrapes job offers from [Pracuj.pl](https://www.pracuj.pl), filters them based on keywords provided in a `.txt` file, and saves the data to both a `.csv` file and a local SQLite database.
 
 ## Features
 - Keywords search (loaded from a `.txt` file)
-- Extract job **title**, **company**, **publication date**, and **URL**
+- Extract job
 - Store data in:
   - CSV file
   - SQLite database
