@@ -14,6 +14,12 @@ def load_keywords_from_file(file_path="keywords.txt"):
         keywords = [line.strip() for line in f if line.strip()]
     return keywords
 
+# Loader of keywords_description
+def load_keywords_description(file_path="keywords_description.txt"):
+    with open(file_path, "r", encoding="utf-8") as f:
+        keywords_description = [line.strip() for line in f if line.strip()]
+    return keywords_description
+
 # Connection to SQLite database
 def connect_to_db(conn, cur):
     cur.execute('''
@@ -58,14 +64,14 @@ def search_jobs(keyword, writer):
     url = f"https://www.pracuj.pl/praca/{encoded_keyword};kw/warszawa;wp?rd=30"
 
     driver.get(url)
-    time.sleep(3) # sec
+    time.sleep(2) # sec
 
     # Cookie banner handling
     try:
-        wait = WebDriverWait(driver, 3)
+        wait = WebDriverWait(driver, 2)
         cookie_btn = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[data-test="button-submitCookie"]')))
         cookie_btn.click()
-        time.sleep(5)
+        time.sleep(2)
     except:
         print("No cookies detected")
 
@@ -77,7 +83,7 @@ def search_jobs(keyword, writer):
         offer = offer_links[i]
 
         driver.execute_script("arguments[0].click();", offer)
-        WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.TAG_NAME, "h1")))
+        WebDriverWait(driver, 3).until(EC.presence_of_element_located((By.TAG_NAME, "h1")))
         link = driver.current_url
 
         # Find elements
@@ -85,28 +91,35 @@ def search_jobs(keyword, writer):
             title = driver.find_element(By.CSS_SELECTOR, "[data-test='text-positionName']").text
             company = driver.find_element(By.CSS_SELECTOR, "[data-test='text-employerName']").text
             date = driver.find_element(By.CSS_SELECTOR, "div.lowercase-description.d1urwcho").text
+            description = driver.find_element(By.CSS_SELECTOR,".o1eg7akv").text
 
-            print(title, company, date, link)
-            writer.writerow([keyword, title, company, date, link])
+            description_lower = description.lower()
+
+            found = True
+            for kd in keywords_description:
+                if kd.lower() not in description_lower:
+                    print(f"Missing keyword: {kd.lower()}")
+                    found = False
+                    break
+
+            if found:
+                print(f"✅ Found matching offer: {title}")
+                writer.writerow([keyword, title, company, date, link])
+                save_to_db(cur, keyword, title, company, date, link)
+            else:
+                print(f"⛔ No matching keywords in: {title}")
         except Exception as e:
             print(f"Error while scrapping in the offer: {e}")
 
-        # Save above elements to db
-        try:
-            save_to_db(cur, keyword, title, company, date, link)
-            print("Saved to sql db")
-        except Exception as e:
-            print(f"Error while saving the offer in sqlite db: {e}")
-            
         time.sleep(2)
         driver.back()
-        time.sleep(2)
 
     conn.close()
     driver.quit()
 
 if __name__ == "__main__":
     keywords = load_keywords_from_file("keywords.txt")
+    keywords_description = load_keywords_description("keywords_description.txt")
 
     # Save to csv
     with open("offers.csv", mode="w", newline="", encoding="utf-8") as csvfile:
